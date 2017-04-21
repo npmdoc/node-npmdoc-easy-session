@@ -1,0 +1,468 @@
+<html><head></head><body><div class="apidocDiv">
+<style>
+/*csslint
+*/
+.apidocDiv {
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+.apidocDiv a[href] {
+    color: #33f;
+    font-weight: bold;
+    text-decoration: none;
+}
+.apidocDiv a[href]:hover {
+    text-decoration: underline;
+}
+.apidocCodeCommentSpan {
+    background: #bbf;
+    color: #000;
+    display: block;
+}
+.apidocCodeKeywordSpan {
+    color: #d00;
+    font-weight: bold;
+}
+.apidocCodePre {
+    background: #eef;
+    border: 1px solid;
+    color: #777;
+    padding: 5px;
+    white-space: pre-wrap;
+}
+.apidocFooterDiv {
+    margin-top: 20px;
+    text-align: center;
+}
+.apidocModuleLi {
+    margin-top: 10px;
+}
+.apidocSectionDiv {
+    border-top: 1px solid;
+    margin-top: 20px;
+}
+.apidocSignatureSpan {
+    color: #777;
+    font-weight: bold;
+}
+</style>
+<h1>api documentation for
+    <a>easy-session (v1.2.0)</a>
+</h1>
+<h4>Session management and security simplifier</h4>
+<div class="apidocSectionDiv"><a href="#apidoc.tableOfContents" id="apidoc.tableOfContents"><h1>table of contents</h1></a><ol>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.easy-session">module easy-session</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.easy-session.can">
+            function <span class="apidocSignatureSpan">easy-session.</span>can
+            <span class="apidocSignatureSpan">(operation, params, errorCallback)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.easy-session.checkRole">
+            function <span class="apidocSignatureSpan">easy-session.</span>checkRole
+            <span class="apidocSignatureSpan">(role, reverse, errorCallback)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.easy-session.isFresh">
+            function <span class="apidocSignatureSpan">easy-session.</span>isFresh
+            <span class="apidocSignatureSpan">(errorCallback)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.easy-session.isLoggedIn">
+            function <span class="apidocSignatureSpan">easy-session.</span>isLoggedIn
+            <span class="apidocSignatureSpan">(errorCallback)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.easy-session.main">
+            function <span class="apidocSignatureSpan">easy-session.</span>main
+            <span class="apidocSignatureSpan">(connect, opts)</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+</ol></div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.easy-session" id="apidoc.module.easy-session">module easy-session</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.easy-session.can" id="apidoc.element.easy-session.can">
+        function <span class="apidocSignatureSpan">easy-session.</span>can
+        <span class="apidocSignatureSpan">(operation, params, errorCallback)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function can(operation, params, errorCallback) {
+    if(typeof operation !== 'string') {
+        throw new TypeError('Expected first parameter to be string');
+    }
+    return function canAccess(req, res, next) {
+        var resultFn = function (err, can) {
+            if(err || !can) {
+                errFn();
+                return;
+            }
+            next();
+        };
+        var errFn = function () {
+            if(errorCallback) {
+                errorCallback(req, res, next);
+                return;
+            }
+
+            (res.sendStatus || res.send).call(res, 403);
+        };
+        if(typeof params === 'function') {
+            params(req, res, function (err, data) {
+                if(err) {
+                    errFn(new Error('RBAC check failed'));
+                    return;
+                }
+                req.session.can(operation, data, resultFn);
+            });
+            return;
+        }
+        req.session.can(operation, params, resultFn);
+    };
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+
+*This function is available only if `rbac` configuration property was set.*
+
+This function uses the `getRole` function of the session object to invoke `easy-rbac`. Will return promise or invoke callback if
+ provided.
+
+	 // as promise
+	 app.get('/post/save', function (req, res, next) {
+			 req.session.<span class="apidocCodeKeywordSpan">can</span>('post:save', {userId: 1, ownerId: 1}).then(function () {
+					 res.send('yes');
+			 }, function (err) {
+					 res.sendStatus(403);
+			 });
+	 });
+	
+	 // with callback
+...</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.easy-session.checkRole" id="apidoc.element.easy-session.checkRole">
+        function <span class="apidocSignatureSpan">easy-session.</span>checkRole
+        <span class="apidocSignatureSpan">(role, reverse, errorCallback)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function checkRole(role, reverse, errorCallback) {
+    if(typeof reverse === 'function') {
+        errorCallback = reverse;
+        reverse = false;
+    }
+    return function (req, res, next) { // Check role
+        if(req.session.hasRole(role, reverse)) {
+            next();
+            return;
+        }
+        if(errorCallback) {
+            errorCallback(req, res, next);
+            return;
+        }
+
+        (res.sendStatus || res.send).call(res, 401);
+    };
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+    // Otherwise they get 401
+	});
+
+## checkRole(role, [errorCallback])
+
+Returns a middleware to check if the user has a given role.
+
+	app.get('/restricted', easySession.<span class="apidocCodeKeywordSpan">checkRole</span>('admin'), function (
+req, res, next) {
+    // If the user reaches this then they the 'admin' role
+    // Otherwise they get 401
+	});
+
+### NB! As of 0.2 it does no longer check if user is logged in
+
+In order to check for both you should use two middlewares together
+...</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.easy-session.isFresh" id="apidoc.element.easy-session.isFresh">
+        function <span class="apidocSignatureSpan">easy-session.</span>isFresh
+        <span class="apidocSignatureSpan">(errorCallback)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function isFresh(errorCallback) {
+    return function (req, res, next) {
+        if(req.session.isFresh()) {
+            next();
+            return;
+        }
+        if(errorCallback) {
+            errorCallback(req, res, next);
+            return;
+        }
+
+        (res.sendStatus || res.send).call(res, 401);
+    };
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+If a role is specified then it will also run `Session.hasRole` with the given role
+
+## isFresh()
+
+Function for checking if the logged in session is fresh or stale.
+Returns true if fresh, false if stale.
+
+	if(req.session.<span class="apidocCodeKeywordSpan">isFresh</span>()) {
+		// User has logged in recently - session is fresh
+	}
+
+## setRole(role)
+
+Function for setting a role in the session.
+...</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.easy-session.isLoggedIn" id="apidoc.element.easy-session.isLoggedIn">
+        function <span class="apidocSignatureSpan">easy-session.</span>isLoggedIn
+        <span class="apidocSignatureSpan">(errorCallback)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function isLoggedIn(errorCallback) {
+    return function (req, res, next) {
+        if(req.session.isLoggedIn()) {
+            next();
+            return;
+        }
+        if(errorCallback) {
+            errorCallback(req, res, next);
+            return;
+        }
+
+        (res.sendStatus || res.send).call(res, 401);
+    };
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+	}
+
+## isLoggedIn([role])
+
+Function for checking if the user is logged in.
+Will return the opposite of isGuest();
+
+	if(req.session.<span class="apidocCodeKeywordSpan">isLoggedIn</span>()) {
+		// Logged in user
+	}
+
+If a role is specified then it will also run `Session.hasRole` with the given role
+
+## isFresh()
+...</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.easy-session.main" id="apidoc.element.easy-session.main">
+        function <span class="apidocSignatureSpan">easy-session.</span>main
+        <span class="apidocSignatureSpan">(connect, opts)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function easySessionMain(connect, opts) {
+
+    if(!connect) {
+        throw new TypeError('expected connect or express or express-session object as first argument');
+    }
+    var Session = connect.Session || connect.session.Session;
+
+    // Get options
+    opts = opts || {};
+    if(typeof opts !== 'object') {
+        throw new TypeError('expected an options object as second argument');
+    }
+
+
+    var ipCheck = opts.ipCheck === undefined ? true : !!opts.ipCheck;
+    var uaCheck = opts.uaCheck === undefined ? true : !!opts.uaCheck;
+    var freshTimeout = opts.freshTimeout || (5 * 60 * 1000);
+    var maxFreshTimeout = opts.maxFreshTimeout || (10 * 60 * 1000);
+    var rbac;
+    if(opts.rbac) {
+        rbac = new RBAC(opts.rbac);
+    }
+
+    // Extend the Session object
+
+<span class="apidocCodeCommentSpan">    /**
+     * Function for logging the user in.
+     * Regenerates the session and adds _loggedInAt to the session object.
+     * Depending on the configuration also adds _ip and _ua for continuity checks.
+     * @param obj - optional properties to set on created session
+     * @param cb
+     */
+</span>    Session.prototype.login = function login(role, extend, cb) {
+        if(typeof role === 'function') {
+            cb = role;
+            extend = false;
+            role = 'authenticated';
+        } else if (typeof role === 'object') {
+            cb = extend;
+            extend = role;
+            role = 'authenticated';
+        }
+        if(typeof extend === 'function') {
+            cb = extend;
+            extend = false;
+        } else if (extend &amp;&amp; typeof extend !== 'object') {
+            throw new TypeError('Second parameter expected to be an object');
+        }
+
+        var req = this.req;
+        this.regenerate(function (err) {
+            if(err) {
+                cb(err);
+                return;
+            }
+            // Add logged in date
+            req.session._loggedInAt = Date.now();
+            req.session._lastRequestAt = Date.now();
+            req.session.setRole(role);
+
+            if(ipCheck) {
+                req.session._ip = req.ip;
+            }
+            if(uaCheck) {
+                req.session._ua = req.headers['user-agent'];
+            }
+            if(extend) {
+                Object.keys(extend).forEach(function (key) {
+                    req.session[key] = extend[key];
+                });
+            }
+            req.session.save();
+            cb();
+        });
+    };
+    /**
+     * Function for logging out the user.
+     * Is just a proxy for session regeneration.
+     * @param cb
+     * @returns {*}
+     */
+    Session.prototype.logout = function logout(cb) {
+        return this.regenerate(cb);
+    };
+
+    var oldResetMaxAge = Session.prototype.resetMaxAge;
+
+    Session.prototype.resetMaxAge = function resetMaxAge() {
+        this._lastRequestAt = Date.now();
+        return oldResetMaxAge.call(this);
+    };
+
+    /**
+     * Function for setting the last request for current moment
+     * @returns {*}
+     */
+    Session.prototype.setLastRequest = function setLastRequest() {
+        this._lastRequestAt = Date.now();
+    };
+
+    /**
+     * Function for checking if the user is a guest.
+     * Returns true if logged out, false if logged in.
+     * @returns {boolean}
+     */
+    Session.prototype.isGuest = function isGuest() {
+        return !this._loggedInAt; // If this is not set then we are not logged in
+    };
+
+    /**
+     * Function for checking if the user is logged in.
+     * Returns true if logged id, false if logged out.
+     *
+     * @param [optional] {string} - If present the user is also checked for the role
+     * @returns {boolean}
+     */
+    Session.prototype.isLoggedIn = function isLoggedIn(role) {
+        if(!role) {
+            return !this.isGuest();
+        }
+        return !this.isGuest() &amp;&amp; this.hasRole(role);
+    };
+
+    /**
+     * Function for checking if the logged in session is fresh or stale.
+     * Returns true if fresh, false if stale.
+     * @returns {boolean}
+     */
+    Session.prototype.isFresh = function isFresh() {
+        if(!this._loggedInAt) {
+            return false;
+        } ...</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+
+	app.use(cookieParser());
+	app.use(session({
+	    secret: 'keyboard cat',
+	    resave: false,
+	    saveUninitialized: true
+	}));
+	app.use(easySession.<span class="apidocCodeKeywordSpan">main</span>(session)); // Bind the module : line 2
+
+Or in Express v3
+
+	var express = require('express');
+	var easySession = require('easy-session'); // Require the module : line 1
+
+	var app = express();
+...</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocFooterDiv">
+    [ this document was created with
+    <a href="https://github.com/kaizhu256/node-utility2" target="_blank">utility2</a>
+    ]
+</div>
+</div>
+</body></html>
